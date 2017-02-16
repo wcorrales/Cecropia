@@ -1,0 +1,245 @@
+﻿
+@{
+    ViewBag.Title = "Index";
+}
+
+<h2>Home</h2>
+
+<div class="demo-container">
+
+    <div id="gridContainer"></div>
+    <div id="eventContainer">
+        <b>Fired events:</b>
+        <div id="clearLog"></div>
+        <div class="eventLog"></div>
+    </div>
+</div>
+<script>
+    $(function () {
+        //Log events in the screen
+        function logEvent(eventName) {
+            var el = $("#eventContainer .eventLog"),
+                value = el.text();
+            value += ((value && ", ") + eventName);
+            el.text(value);
+        }
+
+
+        var patients = "";
+        var countries = "";
+        var bloodtypes = "";
+
+        $(document).ready(function () {
+            //Init the app
+            GetAllBloodTypes();
+        });
+
+        //Get all patients from DB
+        function GetAllPatients() {
+                $.ajax({
+                    url: "http://localhost:40419/services/patient/get",
+                    type: 'GET',
+                    dataType: 'json',
+                    success: function (data) {
+                        patients = data;
+                        LoadDataGrid();
+                    },
+                    error: function (x, y, z) {
+                    }
+                });
+        }
+
+        //Get All Countries from DB
+        function GetAllCountries() {
+            $.ajax({
+                url: "http://localhost:40419/services/countries/get",
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    countries = data;
+                    GetAllPatients();
+                },
+                error: function (x, y, z) {
+                }
+            });
+        }
+        
+        //Get all Blood types from DB
+        function GetAllBloodTypes() {
+            $.ajax({
+                url: "http://localhost:40419/services/bloodtypes/get",
+                type: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    bloodtypes = data;
+                    GetAllCountries();
+                },
+                error: function (x, y, z) {
+                }
+            });
+        }
+
+        //Update the patient in DB
+        function UpdatePatient(patient) {
+            $.ajax({
+                url: "http://localhost:40419/services/patient/update",
+                type: 'POST',
+                dataType: 'json',
+                data: patient,
+                success: function (data) {
+                },
+                error: function (x, y, z) {
+                }
+            });
+        }
+
+        //Create a patient in DB
+        function CreatePatient(patient) {
+            $.ajax({
+                url: "http://localhost:40419/services/patient/create",
+                type: 'POST',
+                dataType: 'json',
+                data:patient,
+                success: function (data) {
+                },
+                error: function (x, y, z) {
+                }
+            });
+        }
+
+        //Delete Patient in DB
+        function DeletePatient(id) {
+            $.ajax({
+                url: "http://localhost:40419/services/patient/delete/" + id,
+                type: 'POST',
+                dataType: 'json',
+                success: function (data) {
+                },
+                error: function (x, y, z) {
+                }
+            });
+        }
+
+        //Load the grid with data
+        function LoadDataGrid() {
+            $("#gridContainer").dxDataGrid({
+                dataSource: patients,
+                paging: {
+                    enabled: false
+                },
+                editing: {
+                    mode: "row",
+                    allowUpdating: true,
+                    allowDeleting: true,
+                    allowAdding: true
+                },
+                columns: [
+                     "FirstName",
+                    "LastName", {
+                        dataField: "DateOfBirth",
+                        dataType: "date",
+                        width: 125
+                    }, {
+                        dataField: "Nationality",
+                        caption: "Nationality",
+                        width: 125,
+                        lookup: {
+                            dataSource: countries,
+                            displayExpr: "Name",
+                            valueExpr: "Id"
+                        }
+                    },
+                    "Diseases",
+                    "PhoneNumber", {
+                        dataField: "BloodType",
+                        caption: "BloodType",
+                        width: 125,
+                        lookup: {
+                            dataSource: bloodtypes,
+                            displayExpr: "Name",
+                            valueExpr: "Id"
+                        }
+                    },
+
+                ],
+                onEditingStart: function (e) {
+                    logEvent("EditingStart");
+                },
+                onInitNewRow: function (e) {
+                    logEvent("InitNewRow");
+                },
+                onRowInserting: function (e) {
+                    CreatePatient(e.data);
+                },
+                onRowInserted: function (e) {
+                    $("#eventContainer .eventLog").empty();
+                    logEvent("Record created successfully.");
+                },
+                onRowUpdating: function (e) {
+                    var objUpdate = e.oldData;
+                    objUpdate.BloodType = e.newData.BloodType != undefined ? e.newData.BloodType : objUpdate.BloodType;
+                    objUpdate.DateOfBirth = e.newData.DateOfBirth != undefined ? e.newData.DateOfBirth:objUpdate.DateOfBirth;
+                    objUpdate.Diseases = e.newData.Diseases != undefined ?e.newData.Diseases:objUpdate.Diseases;
+                    objUpdate.FirstName = e.newData.FirstName != undefined ?e.newData.FirstName:objUpdate.FirstName;
+                    objUpdate.LastName = e.newData.LastName != undefined ?e.newData.LastName:objUpdate.LastName;
+                    objUpdate.Nationality = e.newData.Nationality != undefined ?e.newData.Nationality:objUpdate.Nationality;
+                    objUpdate.PhoneNumber = e.newData.PhoneNumber != undefined ? e.newData.PhoneNumber : objUpdate.PhoneNumber;
+                    UpdatePatient(objUpdate);
+                },
+                onRowUpdated: function (e) {
+                    $("#eventContainer .eventLog").empty();
+                    logEvent("Record updated successfully.");
+                },
+                onRowRemoving: function (e) {
+                    DeletePatient(e.data.Id)
+                },
+                onRowRemoved: function (e) {
+                    $("#eventContainer .eventLog").empty();
+                    logEvent("Record deleted successfully.");
+                }
+            });
+
+
+            $("#clearLog").dxButton({
+                text: "Clear",
+                onClick: function () {
+                    $("#eventContainer .eventLog").empty();
+                }
+            });
+        }
+    });
+</script>
+
+@*@(Html.DevExtreme().DataGrid()
+    .ShowBorders(true)
+    .DataSource(d => d.WebApi().Controller("Orders").Key("OrderID"))
+    .Columns(columns => {
+        columns.Add().DataField("OrderID");
+        columns.Add().DataField("OrderDate").DataType(GridColumnDataType.Date);
+        columns.Add().DataField("CustomerName");
+        columns.Add().DataField("ShipCountry");
+        columns.Add().DataField("ShipCity");
+    })
+    .Paging(p => p.PageSize(10))
+        .Editing(editing =>
+        {
+            editing.Mode(GridEditMode.Row);
+            editing.AllowAdding(true);
+            editing.AllowDeleting(true);
+            editing.AllowUpdating(true);
+        })
+    .FilterRow(f => f.Visible(true))
+    .HeaderFilter(f => f.Visible(true))
+    .GroupPanel(p => p.Visible(true))
+    .Grouping(g => g.AutoExpandAll(false))
+    .RemoteOperations(true)
+    .Summary(s => s
+        .TotalItems(totalItems => {
+            totalItems.Add().Column("ShipCity").SummaryType(SummaryType.Count);
+        })
+        .GroupItems(groupItems => {
+            groupItems.Add().SummaryType(SummaryType.Count);
+        })
+    )
+)*@
+
